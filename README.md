@@ -63,6 +63,8 @@ src/ui/         DOM
 
 PostHog, EU host, memory persistence, no cookies, autocapture off.
 
+Meta Pixel loads only for US / CA / AU, gated by `api/geo.ts`.
+
 `api_host` is `/ingest`, proxied by `vercel.json` and vite; leave `VITE_POSTHOG_HOST` unset.
 
 ## Icons
@@ -85,6 +87,7 @@ Copy `.env.example` to `.env`. All optional.
 | `VITE_WAITLIST_ENDPOINT` | "I want the app" shows app-not-out text instead of email field. |
 | `VITE_TRACK_ENDPOINT` | `track()` no-ops. |
 | `VITE_STATS_ENDPOINT` | Chart omits dotto-players band. |
+| `VITE_META_PIXEL_ID` | No pixel. |
 
 `VITE_STATS_ENDPOINT` returns `{ sampleSize: number, buckets: [{ upToMs: number, count: number }] }` for `GET <endpoint>?level=<id>`.
 

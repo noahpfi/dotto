@@ -1,12 +1,7 @@
 import type { PostHog } from 'posthog-js';
+import { env } from './env';
 
 // bannerless per TKG 2021 §165(3) only with memory persistence, no profiles, EU host
-// blank VITE_POSTHOG_HOST = empty string -> ?? alone would use it as api_host
-function env(name: string, fallback: string): string {
-  const value = import.meta.env[name] as string | undefined;
-  return value === undefined || value.trim() === '' ? fallback : value.trim();
-}
-
 const KEY = env('VITE_POSTHOG_KEY', '');
 
 // blockers list PostHog domain -> default first-party /ingest

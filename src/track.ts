@@ -1,4 +1,5 @@
 import type { DottoEventName, PropsFor } from './analytics/events';
+import { initPixel, isPixelConfigured, trackPixel } from './analytics/pixel';
 import { capturePostHog, initPostHog, isPostHogEnabled } from './analytics/posthog';
 
 const BEACON = import.meta.env['VITE_TRACK_ENDPOINT'] as string | undefined;
@@ -7,11 +8,15 @@ const BEACON = import.meta.env['VITE_TRACK_ENDPOINT'] as string | undefined;
 export function track<N extends DottoEventName>(name: N, props: PropsFor<N>): void {
   capturePostHog(name, props as Record<string, unknown>);
   sendBeacon(name, props as Record<string, unknown>);
+
+  // Meta gets only fake-door tap, pixel-permitted countries only
+  if (name === 'app_intent') trackPixel('Lead');
 }
 
 // call once at startup
 export function initAnalytics(): void {
   if (isPostHogEnabled()) void initPostHog();
+  if (isPixelConfigured()) void initPixel();
 }
 
 function sendBeacon(name: string, props: Record<string, unknown>): void {
