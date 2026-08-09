@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
-// base ./ -> build runs from any static host or subpath without rebuild
+// subpath deploy needs change
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [tailwindcss()],
 });

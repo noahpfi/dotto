@@ -63,6 +63,10 @@ src/ui/         DOM
 
 PostHog, EU host, memory persistence, no cookies, autocapture off.
 
+## Icons
+
+`node scripts/make-icons.mjs` regenerates `public/` icons and `og.png`.
+
 ## Deploy
 
 `vercel.json` sets build, `dist` output, caching and security headers.
