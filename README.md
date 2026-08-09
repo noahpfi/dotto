@@ -63,6 +63,8 @@ src/ui/         DOM
 
 PostHog, EU host, memory persistence, no cookies, autocapture off.
 
+`api_host` is `/ingest`, proxied by `vercel.json` and vite; leave `VITE_POSTHOG_HOST` unset.
+
 ## Icons
 
 `node scripts/make-icons.mjs` regenerates `public/` icons and `og.png`.

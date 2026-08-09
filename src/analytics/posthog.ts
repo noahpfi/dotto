@@ -1,14 +1,24 @@
 import type { PostHog } from 'posthog-js';
 
 // bannerless per TKG 2021 §165(3) only with memory persistence, no profiles, EU host
-const KEY = import.meta.env['VITE_POSTHOG_KEY'] as string | undefined;
-const HOST = (import.meta.env['VITE_POSTHOG_HOST'] as string | undefined) ?? 'https://eu.i.posthog.com';
+// blank VITE_POSTHOG_HOST = empty string -> ?? alone would use it as api_host
+function env(name: string, fallback: string): string {
+  const value = import.meta.env[name] as string | undefined;
+  return value === undefined || value.trim() === '' ? fallback : value.trim();
+}
+
+const KEY = env('VITE_POSTHOG_KEY', '');
+
+// blockers list PostHog domain -> default first-party /ingest
+const HOST = env('VITE_POSTHOG_HOST', '/ingest');
+// required when proxying -> PostHog in-app links point at dashboard
+const UI_HOST = 'https://eu.posthog.com';
 
 let client: PostHog | null = null;
 let loading: Promise<PostHog | null> | null = null;
 
 export function isPostHogEnabled(): boolean {
-  return KEY !== undefined && KEY !== '';
+  return KEY !== '';
 }
 
 // idempotent load, resolves null when unconfigured or chunk fails
@@ -21,8 +31,9 @@ export function initPostHog(): Promise<PostHog | null> {
 
   loading = import('posthog-js')
     .then(({ posthog }) => {
-      posthog.init(KEY as string, {
+      posthog.init(KEY, {
         api_host: HOST,
+        ui_host: UI_HOST,
         defaults: '2025-05-24',
         // cookieless_mode always -> posthog-js 1.414.0 permanently opted out
         persistence: 'memory',
@@ -32,7 +43,8 @@ export function initPostHog(): Promise<PostHog | null> {
         capture_pageleave: true,
         disable_session_recording: true,
         disable_surveys: true,
-        respect_dnt: true,
+        // DNT ignored, tracking stays cookieless, profileless, EU-only
+        respect_dnt: false,
       });
       client = posthog;
       if (import.meta.env.DEV) {
