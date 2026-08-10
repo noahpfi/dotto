@@ -4,9 +4,9 @@ import { Gauntlet } from './engine/gauntlet';
 import type { AttemptResult, GauntletEvent } from './engine/types';
 import { dwellPercentile } from './benchmarks';
 import { levelById, levelForPrediction, longerLevel } from './levels';
-import { getPrediction, setPrediction } from './prediction';
+import { getPrediction, getPredictionArm, setPrediction } from './prediction';
 import { load, recordAttempt, type SaveData } from './storage';
-import { initAnalytics, track } from './track';
+import { initAnalytics, setTrackContext, track } from './track';
 import { clear } from './ui/dom';
 import { createHome } from './ui/home';
 import { PlayView } from './ui/play';
@@ -59,7 +59,7 @@ class App {
 
   // prediction sets length of that one run only
   private beginLevel(levelId: number): void {
-    if (getPrediction() !== null) {
+    if (getPredictionArm() === 'skip' || getPrediction() !== null) {
       this.predictionRun = false;
       this.startLevel(levelId);
       return;
@@ -277,4 +277,6 @@ class App {
 const mount = document.getElementById('app');
 if (mount === null) throw new Error('dotto: #app mount point missing from index.html');
 initAnalytics();
+// set before first event -> every funnel incl home_viewed splits by arm
+setTrackContext({ prediction_arm: getPredictionArm() });
 new App(mount).showHome();

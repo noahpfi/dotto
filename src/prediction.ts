@@ -1,5 +1,27 @@
 // pre-run prediction, per session, reused across that visit's levels
 const KEY = 'dotto.prediction';
+const ARM_KEY = 'dotto.predictionArm';
+
+// sticky per-session coin flip -> ask to predict or skip, A/B test
+export type PredictionArm = 'ask' | 'skip';
+
+function coinFlip(): PredictionArm {
+  return Math.random() < 0.5 ? 'ask' : 'skip';
+}
+
+// storage failure -> fresh flip
+export function getPredictionArm(): PredictionArm {
+  try {
+    const stored = sessionStorage.getItem(ARM_KEY);
+    if (stored === 'ask' || stored === 'skip') return stored;
+    const arm = coinFlip();
+    sessionStorage.setItem(ARM_KEY, arm);
+    return arm;
+  } catch (err) {
+    console.warn('dotto: sessionStorage unavailable, prediction arm will not persist —', err);
+    return coinFlip();
+  }
+}
 
 // every value after first must match level length
 export const PREDICTION_CHOICES: readonly { readonly ms: number; readonly label: string }[] = [

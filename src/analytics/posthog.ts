@@ -42,6 +42,7 @@ export function initPostHog(): Promise<PostHog | null> {
         respect_dnt: false,
       });
       client = posthog;
+      if (Object.keys(superProps).length > 0) posthog.register(superProps);
       if (import.meta.env.DEV) {
         (window as Window & { posthog?: PostHog }).posthog = posthog;
       }
@@ -53,6 +54,23 @@ export function initPostHog(): Promise<PostHog | null> {
     });
 
   return loading;
+}
+
+// super-props like experiment arm, buffered until library loads
+let superProps: Record<string, unknown> = {};
+
+export function registerSuperProps(props: Record<string, unknown>): void {
+  superProps = { ...superProps, ...props };
+  if (!isPostHogEnabled()) return;
+  if (client !== null) {
+    client.register(props);
+    return;
+  }
+  void initPostHog().then((ph) => ph?.register(superProps));
+}
+
+export function getSuperProps(): Record<string, unknown> {
+  return superProps;
 }
 
 // fire-and-forget, queued behind dynamic import -> early events survive

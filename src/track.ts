@@ -1,6 +1,12 @@
 import type { DottoEventName, PropsFor } from './analytics/events';
 import { initPixel, isPixelConfigured, trackPixel } from './analytics/pixel';
-import { capturePostHog, initPostHog, isPostHogEnabled } from './analytics/posthog';
+import {
+  capturePostHog,
+  getSuperProps,
+  initPostHog,
+  isPostHogEnabled,
+  registerSuperProps,
+} from './analytics/posthog';
 
 const BEACON = import.meta.env['VITE_TRACK_ENDPOINT'] as string | undefined;
 
@@ -13,6 +19,11 @@ export function track<N extends DottoEventName>(name: N, props: PropsFor<N>): vo
   if (name === 'app_intent') trackPixel('Lead');
 }
 
+// attaches props to every later event in both sinks, used for experiment arm
+export function setTrackContext(props: Record<string, string | number | boolean>): void {
+  registerSuperProps(props);
+}
+
 // call once at startup
 export function initAnalytics(): void {
   if (isPostHogEnabled()) void initPostHog();
@@ -21,7 +32,8 @@ export function initAnalytics(): void {
 
 function sendBeacon(name: string, props: Record<string, unknown>): void {
   if (BEACON === undefined || BEACON === '') return;
-  const body = JSON.stringify({ event: name, ts: Date.now(), ...props });
+  // merges context -> raw copy stays segmentable by experiment arm
+  const body = JSON.stringify({ event: name, ts: Date.now(), ...getSuperProps(), ...props });
   try {
     if (typeof navigator.sendBeacon === 'function') {
       navigator.sendBeacon(BEACON, new Blob([body], { type: 'application/json' }));

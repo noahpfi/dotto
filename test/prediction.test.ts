@@ -90,22 +90,70 @@ describe('prediction run length', () => {
   });
 });
 
-describe('predictionVerdict', () => {
+describe('appVerdict', () => {
   it('states both numbers and nothing about the player', async () => {
-    const { predictionVerdict } = await import('../src/copy');
-    const line = predictionVerdict(300_000, 12_000, false);
+    const { appVerdict } = await import('../src/copy');
+    const line = appVerdict(12_000, 300_000, false);
     expect(line).toContain('5:00');
     expect(line).toContain('12s');
     expect(line).not.toMatch(/attention|focus|healthy|normal|poor/i);
   });
 
   it('uses present tense for the predicted run', async () => {
-    const { predictionVerdict } = await import('../src/copy');
-    expect(predictionVerdict(300_000, 12_000, false)).toMatch(/^You said 5:00\./);
+    const { appVerdict } = await import('../src/copy');
+    expect(appVerdict(12_000, 300_000, false)).toMatch(/^You said 5:00\./);
   });
 
   it('uses past tense for later runs', async () => {
-    const { predictionVerdict } = await import('../src/copy');
-    expect(predictionVerdict(300_000, 12_000, true)).toMatch(/^In the beginning you said 5:00\./);
+    const { appVerdict } = await import('../src/copy');
+    expect(appVerdict(12_000, 300_000, true)).toMatch(/^In the beginning you said 5:00\./);
+  });
+
+  it('falls back to the published average without a claim', async () => {
+    const { appVerdict } = await import('../src/copy');
+    // skip arm also gets exactly one comparison line
+    const line = appVerdict(12_000, null, false);
+    expect(line).toBe('You held 12s. The average person lasts 47 seconds.');
+    expect(line).not.toMatch(/you said/i);
+    expect(line).not.toMatch(/attention|focus|healthy|normal|poor/i);
+  });
+});
+
+describe('prediction experiment arm', () => {
+  it('assigns an arm stable for the session', async () => {
+    const { getPredictionArm } = await import('../src/prediction');
+    const first = getPredictionArm();
+    expect(['ask', 'skip']).toContain(first);
+    for (let i = 0; i < 20; i += 1) expect(getPredictionArm()).toBe(first);
+  });
+
+  it('reuses an arm already stored for the session', async () => {
+    const { getPredictionArm } = await import('../src/prediction');
+    store.clear();
+    store.setItem('dotto.predictionArm', 'skip');
+    expect(getPredictionArm()).toBe('skip');
+    store.setItem('dotto.predictionArm', 'ask');
+    expect(getPredictionArm()).toBe('ask');
+  });
+
+  it('reassigns an unknown stored arm', async () => {
+    const { getPredictionArm } = await import('../src/prediction');
+    store.clear();
+    store.setItem('dotto.predictionArm', 'banana');
+    expect(['ask', 'skip']).toContain(getPredictionArm());
+    expect(store.getItem('dotto.predictionArm')).not.toBe('banana');
+  });
+
+  it('splits roughly evenly across fresh sessions', async () => {
+    const { getPredictionArm } = await import('../src/prediction');
+    let ask = 0;
+    const n = 4000;
+    for (let i = 0; i < n; i += 1) {
+      store.clear();
+      if (getPredictionArm() === 'ask') ask += 1;
+    }
+    // 4000 flips keep fair coin within ±4% of half -> catches inverted/constant arm
+    expect(ask / n).toBeGreaterThan(0.46);
+    expect(ask / n).toBeLessThan(0.54);
   });
 });

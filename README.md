@@ -32,7 +32,7 @@ Sources in `src/benchmarks.ts`; each entry cites a named study.
 
 ## Prediction
 
-Before first run of each session, player guesses hold time; guess is stored in `sessionStorage` and shown on result screens.
+On `ask` arm of a 50/50 session split, player guesses hold time before first run; guess is stored in `sessionStorage` and shown on result screens.
 
 A guess longer than chosen level raises that run to match (`levelForPrediction`); later runs use any level.
 

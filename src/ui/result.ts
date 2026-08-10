@@ -5,7 +5,7 @@ import {
   PASS_HEADLINE,
   PASS_SUBLINE,
   formatDuration,
-  predictionVerdict,
+  appVerdict,
   shareText,
 } from '../copy';
 import type { AttemptResult } from '../engine/types';
@@ -103,20 +103,11 @@ export function createResult(
   // app card above buttons, next to number contradicting player's prediction
   const predicted = getPrediction();
   paneB.appendChild(
-    createAppSection(
-      result.passed ? 'result-pass' : 'result-fail',
-      predicted !== null
-        ? {
-            verdict: predictionVerdict(
-              predicted,
-              result.survivedMs,
-              options.retrospectivePrediction,
-            ),
-            survivedMs: result.survivedMs,
-            predictedMs: predicted,
-          }
-        : { survivedMs: result.survivedMs },
-    ),
+    createAppSection(result.passed ? 'result-pass' : 'result-fail', {
+      verdict: appVerdict(result.survivedMs, predicted, options.retrospectivePrediction),
+      survivedMs: result.survivedMs,
+      ...(predicted !== null ? { predictedMs: predicted } : {}),
+    }),
   );
 
   const actions = el('div', 'flex w-full max-w-sm flex-col gap-2.5');

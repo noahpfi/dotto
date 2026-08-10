@@ -34,14 +34,19 @@ export const PREDICT_QUESTION = 'How long do you think you can hold it?';
 // states run gets raised to claimed length
 export const PREDICT_SUB = 'Be honest.';
 
-// retrospective covers later runs
-export function predictionVerdict(
-  predictedMs: number,
+// both experiment arms get exactly one line, differing only in reference
+export function appVerdict(
   survivedMs: number,
+  predictedMs: number | null,
   retrospective: boolean,
 ): string {
+  const held = formatDuration(survivedMs);
+  if (predictedMs === null) {
+    // benchmark comparison = study fact + run fact
+    return `You held ${held}. The average person lasts 47 seconds.`;
+  }
   const claim = retrospective ? 'In the beginning you said' : 'You said';
-  return `${claim} ${formatDuration(predictedMs)}. You held ${formatDuration(survivedMs)}.`;
+  return `${claim} ${formatDuration(predictedMs)}. You held ${held}.`;
 }
 
 export const APP_CTA_LABEL = 'I want the app';
