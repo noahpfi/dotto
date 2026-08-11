@@ -27,6 +27,14 @@ export const FAIL_SUBLINE: Record<FailReason, string> = {
   quit: 'The dot is still there.',
 };
 
+// tap before first probe ever appeared -> explain what probe looks like
+export function failSubline(reason: FailReason, probesShown: number): string {
+  if (reason === 'tap-nothing' && probesShown === 0) {
+    return 'You never saw it go hollow. That is the only moment a tap counts — and it was coming.';
+  }
+  return FAIL_SUBLINE[reason];
+}
+
 export const PASS_HEADLINE = 'Clean.';
 export const PASS_SUBLINE = 'The dot has nothing on you. Yet.';
 

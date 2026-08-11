@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { Gauntlet, INPUT_GRACE_MS, WARMUP_MS } from '../src/engine/gauntlet';
 import type { GauntletEvent, LevelSpec } from '../src/engine/types';
+import { LEVELS } from '../src/levels';
 
 const T0 = 1000;
 
-// fixed-gap level -> schedules below = deterministic arithmetic
+// earlier-first-probe tests override firstProbeGapMs
 function level(overrides: Partial<LevelSpec> = {}): LevelSpec {
+  const probeGapMs = overrides.probeGapMs ?? ([5000, 5000] as const);
   return {
     id: 99,
     label: 'test',
     durationMs: 30_000,
-    probeGapMs: [5000, 5000],
+    firstProbeGapMs: probeGapMs,
+    probeGapMs,
     probeWindowMs: 1000,
     ...overrides,
   };
@@ -175,6 +178,32 @@ describe('scheduling guards', () => {
     h.jumpTo(T0 + 12_000);
     expect(h.gauntlet.getResult()?.passed).toBe(true);
     expect(h.gauntlet.getResult()?.reason).toBeNull();
+  });
+
+  it('uses the short first gap for probe one and the long gap thereafter', () => {
+    const h = harness(level({ durationMs: 120_000, firstProbeGapMs: [4000, 4000], probeGapMs: [30_000, 30_000] }));
+    h.gauntlet.start();
+
+    // first probe at WARMUP + 4000, not WARMUP + 30000
+    h.advance(WARMUP_MS + 4000 + 50);
+    expect(h.gauntlet.isProbeActive()).toBe(true);
+    h.gauntlet.tap();
+
+    // one more step expires answer window -> run ends
+    h.advance(5000);
+    expect(h.gauntlet.isProbeActive()).toBe(false);
+    h.advance(25_500);
+    expect(h.gauntlet.isProbeActive()).toBe(true);
+  });
+
+  it('shows each level its first probe within 11 seconds', () => {
+    // guards every level against first probe landing after most runs ended
+    for (const spec of LEVELS) {
+      const latestFirstProbeMs = WARMUP_MS + spec.firstProbeGapMs[1];
+      expect(latestFirstProbeMs).toBeLessThanOrEqual(11_000);
+      expect(spec.firstProbeGapMs[0]).toBeLessThanOrEqual(spec.firstProbeGapMs[1]);
+      expect(spec.firstProbeGapMs[1]).toBeLessThan(spec.probeGapMs[0]);
+    }
   });
 
   it('covers the whole random probe gap range', () => {

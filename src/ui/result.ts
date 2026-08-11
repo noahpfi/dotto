@@ -1,7 +1,7 @@
 import {
   BRAND,
   FAIL_HEADLINE,
-  FAIL_SUBLINE,
+  failSubline,
   PASS_HEADLINE,
   PASS_SUBLINE,
   formatDuration,
@@ -73,7 +73,7 @@ export function createResult(
     el(
       'p',
       'max-w-xs text-sm leading-relaxed text-bone/45',
-      result.passed ? PASS_SUBLINE : FAIL_SUBLINE[result.reason ?? 'quit'],
+      result.passed ? PASS_SUBLINE : failSubline(result.reason ?? 'quit', result.probesShown),
     ),
   );
   paneA.appendChild(block);

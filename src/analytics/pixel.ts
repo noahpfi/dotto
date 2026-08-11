@@ -57,10 +57,37 @@ export async function initPixel(): Promise<void> {
   window.fbq?.('init', PIXEL_ID);
   window.fbq?.('track', 'PageView');
   active = true;
+  startEngagementTimer();
 }
 
 // no-op outside allowed countries
 export function trackPixel(event: 'Lead' | 'ViewContent', params: Record<string, unknown> = {}): void {
   if (!active) return;
   window.fbq?.('track', event, params);
+}
+
+// custom Meta events as optimisation targets stronger than PageView
+export type PixelCustomEvent = 'Engaged' | 'RunStarted';
+
+export function trackPixelCustom(event: PixelCustomEvent, params: Record<string, unknown> = {}): void {
+  if (!active) return;
+  window.fbq?.('trackCustom', event, params);
+}
+
+export const ENGAGED_AFTER_MS = 3000;
+
+// counts visible page time only, fires once
+function startEngagementTimer(): void {
+  let visibleMs = 0;
+  let last = performance.now();
+  const tick = (): void => {
+    const now = performance.now();
+    if (document.visibilityState === 'visible') visibleMs += now - last;
+    last = now;
+    if (visibleMs >= ENGAGED_AFTER_MS) {
+      window.clearInterval(handle);
+      trackPixelCustom('Engaged');
+    }
+  };
+  const handle = window.setInterval(tick, 250);
 }

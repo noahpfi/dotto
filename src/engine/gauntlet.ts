@@ -45,7 +45,7 @@ export class Gauntlet {
     this.phase = 'running';
     this.startedAt = now;
     this.endsAt = now + this.level.durationMs;
-    this.scheduleProbe(now + WARMUP_MS);
+    this.scheduleProbe(now + WARMUP_MS, this.level.firstProbeGapMs);
   }
 
   // safe after run ends
@@ -103,8 +103,8 @@ export class Gauntlet {
     this.finish(false, 'quit', this.deps.now() - this.startedAt);
   }
 
-  private scheduleProbe(from: number): void {
-    const [min, max] = this.level.probeGapMs;
+  private scheduleProbe(from: number, gap: readonly [number, number] = this.level.probeGapMs): void {
+    const [min, max] = gap;
     const at = from + randomIntBetween(this.deps.random, min, max);
     // skip probes whose answer window would straddle finish
     this.probeAt = at + this.level.probeWindowMs > this.endsAt - END_GUARD_MS ? null : at;

@@ -1,5 +1,5 @@
 import type { DottoEventName, PropsFor } from './analytics/events';
-import { initPixel, isPixelConfigured, trackPixel } from './analytics/pixel';
+import { initPixel, isPixelConfigured, trackPixel, trackPixelCustom } from './analytics/pixel';
 import {
   capturePostHog,
   getSuperProps,
@@ -15,7 +15,8 @@ export function track<N extends DottoEventName>(name: N, props: PropsFor<N>): vo
   capturePostHog(name, props as Record<string, unknown>);
   sendBeacon(name, props as Record<string, unknown>);
 
-  // Meta gets only fake-door tap, pixel-permitted countries only
+  // Meta RunStarted = optimisation target, Lead = fake-door tap, pixel countries only
+  if (name === 'run_started') trackPixelCustom('RunStarted');
   if (name === 'app_intent') trackPixel('Lead');
 }
 

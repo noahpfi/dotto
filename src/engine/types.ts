@@ -14,6 +14,8 @@ export interface LevelSpec {
   readonly id: number;
   readonly label: string;
   readonly durationMs: number;
+  // short -> first probe lands before bored players tap out
+  readonly firstProbeGapMs: readonly [number, number];
   // max caps how long walk-away goes unseen
   readonly probeGapMs: readonly [number, number];
   readonly probeWindowMs: number;
