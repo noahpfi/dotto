@@ -1,14 +1,15 @@
 import { APP_CTA_LABEL, APP_HEADLINE, APP_PITCH, APP_NOT_OUT } from '../copy';
 import { track } from '../track';
 import { el } from './dom';
+import { envOr } from '../analytics/env';
 
-const ENDPOINT = import.meta.env['VITE_WAITLIST_ENDPOINT'] as string | undefined;
+const ENDPOINT = envOr(import.meta.env.VITE_WAITLIST_ENDPOINT, '');
 
 // endpoint does real validation
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function captureEnabled(): boolean {
-  return ENDPOINT !== undefined && ENDPOINT !== '';
+  return ENDPOINT !== '';
 }
 
 export interface AppSectionOptions {

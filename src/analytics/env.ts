@@ -1,5 +1,4 @@
-// blank Vite env vars = empty strings -> ?? alone passes them through
-export function env(name: string, fallback: string): string {
-  const value = import.meta.env[name] as string | undefined;
+// callers pass literal import.meta.env accesses -> Vite inlines only used vars
+export function envOr(value: string | undefined, fallback: string): string {
   return value === undefined || value.trim() === '' ? fallback : value.trim();
 }

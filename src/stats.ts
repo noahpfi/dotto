@@ -1,5 +1,6 @@
+import { envOr } from './analytics/env';
 // no endpoint -> result screen uses cited-benchmark scale
-const ENDPOINT = import.meta.env['VITE_STATS_ENDPOINT'] as string | undefined;
+const ENDPOINT = envOr(import.meta.env.VITE_STATS_ENDPOINT, '');
 
 // min recorded runs before any percentile shown
 export const MIN_SAMPLE = 50;
@@ -43,7 +44,7 @@ export function playerBand(stats: LevelStats): PlayerBand | null {
 }
 
 export function isStatsEnabled(): boolean {
-  return ENDPOINT !== undefined && ENDPOINT !== '';
+  return ENDPOINT !== '';
 }
 
 function parseStats(levelId: number, value: unknown): LevelStats | null {

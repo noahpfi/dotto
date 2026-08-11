@@ -1,11 +1,11 @@
 import type { PostHog } from 'posthog-js';
-import { env } from './env';
+import { envOr } from './env';
 
 // bannerless per TKG 2021 §165(3) only with memory persistence, no profiles, EU host
-const KEY = env('VITE_POSTHOG_KEY', '');
+const KEY = envOr(import.meta.env.VITE_POSTHOG_KEY, '');
 
 // blockers list PostHog domain -> default first-party /ingest
-const HOST = env('VITE_POSTHOG_HOST', '/ingest');
+const HOST = envOr(import.meta.env.VITE_POSTHOG_HOST, '/ingest');
 // required when proxying -> PostHog in-app links point at dashboard
 const UI_HOST = 'https://eu.posthog.com';
 

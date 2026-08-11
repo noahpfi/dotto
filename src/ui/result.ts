@@ -17,6 +17,7 @@ import { createScale } from './scale';
 import { DWELL_MODEL_NOTE, benchmarkAhead, benchmarkCleared } from '../benchmarks';
 import { getPrediction } from '../prediction';
 import { createAppSection } from './appcta';
+import { envOr } from '../analytics/env';
 
 export interface ResultHandlers {
   readonly onRetry: () => void;
@@ -29,8 +30,8 @@ export interface ResultOptions {
 }
 
 function shareUrl(): string {
-  const configured = import.meta.env['VITE_SHARE_URL'] as string | undefined;
-  return configured !== undefined && configured !== '' ? configured : window.location.origin;
+  const configured = envOr(import.meta.env.VITE_SHARE_URL, '');
+  return configured !== '' ? configured : window.location.origin;
 }
 
 // fail screen centres on one big number vs published figure

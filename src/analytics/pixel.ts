@@ -1,8 +1,8 @@
-import { env } from './env';
+import { envOr } from './env';
 import { fetchGeoVerdict } from './geo';
 
 // loads only where ePrivacy Art 5(3) requires no prior consent
-const PIXEL_ID = env('VITE_META_PIXEL_ID', '');
+const PIXEL_ID = envOr(import.meta.env.VITE_META_PIXEL_ID, '');
 
 type Fbq = ((...args: unknown[]) => void) & { queue?: unknown[]; loaded?: boolean; version?: string };
 

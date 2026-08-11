@@ -1,5 +1,6 @@
 import type { DottoEventName, PropsFor } from './analytics/events';
 import { initPixel, isPixelConfigured, trackPixel, trackPixelCustom } from './analytics/pixel';
+import { envOr } from './analytics/env';
 import {
   capturePostHog,
   getSuperProps,
@@ -8,7 +9,7 @@ import {
   registerSuperProps,
 } from './analytics/posthog';
 
-const BEACON = import.meta.env['VITE_TRACK_ENDPOINT'] as string | undefined;
+const BEACON = envOr(import.meta.env.VITE_TRACK_ENDPOINT, '');
 
 // single funnel -> PostHog + optional beacon, only events from analytics/events.ts
 export function track<N extends DottoEventName>(name: N, props: PropsFor<N>): void {
