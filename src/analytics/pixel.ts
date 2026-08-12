@@ -4,7 +4,14 @@ import { fetchGeoVerdict } from './geo';
 // loads only where ePrivacy Art 5(3) requires no prior consent
 const PIXEL_ID = envOr(import.meta.env.VITE_META_PIXEL_ID, '');
 
-type Fbq = ((...args: unknown[]) => void) & { queue?: unknown[]; loaded?: boolean; version?: string };
+type Fbq = ((...args: unknown[]) => void) & {
+  // set by fbevents.js on load
+  callMethod?: (...args: unknown[]) => void;
+  queue?: unknown[];
+  push?: unknown;
+  loaded?: boolean;
+  version?: string;
+};
 
 declare global {
   interface Window {
@@ -24,17 +31,27 @@ export function isPixelActive(): boolean {
   return active;
 }
 
-// standard Meta snippet, byte-compatible -> Meta debugger recognises it
+// fbevents.js drains fbq.queue only once
+export function createFbqShim(): Fbq {
+  const fbq = function (this: unknown, ...args: unknown[]) {
+    if (typeof fbq.callMethod === 'function') {
+      fbq.callMethod.apply(fbq, args);
+    } else {
+      // script not loaded -> buffer for single drain on load
+      (fbq.queue ??= []).push(args);
+    }
+  } as Fbq;
+  fbq.push = fbq;
+  fbq.loaded = true;
+  fbq.version = '2.0';
+  fbq.queue = [];
+  return fbq;
+}
+
 function loadSnippet(): void {
   if (window.fbq !== undefined) return;
 
-  const fbq: Fbq = function (...args: unknown[]) {
-    // queues calls until remote script loads + replaces shim
-    (fbq.queue ??= []).push(args);
-  } as Fbq;
-  fbq.queue = [];
-  fbq.loaded = true;
-  fbq.version = '2.0';
+  const fbq = createFbqShim();
   window.fbq = fbq;
   window._fbq ??= fbq;
 
