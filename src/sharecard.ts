@@ -8,10 +8,7 @@ const INK = '#08080a';
 // pixelRatio 2 keeps capture under 10MB, some share targets drop larger
 const PIXEL_RATIO = 2;
 
-// portrait 4:5 = tallest aspect Instagram, WhatsApp render uncropped
-const ASPECT_H_OVER_W = 5 / 4;
-
-// visible viewport cropped to 4:5 from top, null on any failure
+// visible viewport of scrolled element, null on any failure
 export async function captureScreen(node: HTMLElement): Promise<Blob | null> {
   try {
     const full = await toCanvas(node, {
@@ -24,11 +21,10 @@ export async function captureScreen(node: HTMLElement): Promise<Blob | null> {
     const rect = node.getBoundingClientRect();
     // negative top = node scrolled up
     const sourceY = Math.max(0, Math.round(-rect.top * PIXEL_RATIO));
-    const visible = Math.min(Math.round(window.innerHeight * PIXEL_RATIO), full.height - sourceY);
-    if (visible <= 0) return null;
+    const height = Math.min(Math.round(window.innerHeight * PIXEL_RATIO), full.height - sourceY);
+    if (height <= 0) return null;
+    if (sourceY === 0 && height >= full.height) return await toBlob(full);
 
-    // height capped at 4:5 and visible area -> short windows yield wider frame
-    const height = Math.min(Math.round(full.width * ASPECT_H_OVER_W), visible);
     const cropped = document.createElement('canvas');
     cropped.width = full.width;
     cropped.height = height;
