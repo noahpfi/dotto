@@ -355,6 +355,25 @@ export function renderCard(url: URL): ImageResponse {
   });
 }
 
-export default function handler(request: Request): ImageResponse {
-  return renderCard(new URL(request.url));
+// full render awaited -> stream failure falls back to static image
+export default async function handler(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  try {
+    const bytes = await renderCard(url).arrayBuffer();
+    if (bytes.byteLength === 0) throw new Error('renderer produced no bytes');
+    return new Response(bytes, {
+      status: 200,
+      headers: {
+        'content-type': 'image/png',
+        'cache-control': 'public, max-age=31536000, immutable',
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // error text as 500 only when x-dotto-debug header set
+    if (request.headers.get('x-dotto-debug') === '1') {
+      return new Response(message, { status: 500, headers: { 'content-type': 'text/plain' } });
+    }
+    return Response.redirect(new URL('/og.png', url.origin).toString(), 302);
+  }
 }
