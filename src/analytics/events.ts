@@ -90,6 +90,11 @@ export type DottoEvent =
     }
   | { name: 'share_dismissed'; props: { source: string; direction: 'open' | 'back' | 'onward' } }
   | { name: 'share_failed'; props: { source: string } }
+  // desktop only -> floor on manual shares
+  | {
+      name: 'screenshot_key';
+      props: { source: string; method: 'printscreen' | 'mac-capture' | 'win-snip' };
+    }
   // only measurable signal for manual-post route
   | { name: 'image_saved'; props: { source: string; ok: boolean } }
   // denominator for dare loop

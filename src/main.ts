@@ -7,6 +7,7 @@ import { dailyDayNumber, dailyRandom } from './daily';
 import { beatsDare, parseDare, type DareChallenge } from './dare';
 import { DAILY_LEVEL_ID, isDailyLevel, levelById, levelForPrediction, longerLevel } from './levels';
 import { getPrediction, getPredictionArm, setPrediction } from './prediction';
+import { screenshotMethod } from './screenshot';
 import { dailyStreak, load, playedDaily, recordAttempt, type SaveData } from './storage';
 import { initAnalytics, setTrackContext, track } from './track';
 import { clear } from './ui/dom';
@@ -27,6 +28,9 @@ class App {
   private currentLevelId = 1;
   // true only for single run session prediction was made for
   private predictionRun = false;
+  // non-null exactly while result screen mounted
+  private resultSource: string | null = null;
+  private screenshotFired = false;
   private currentDailyDay: number | null = null;
   // kept across retries, cleared on return home
   private dare: DareChallenge | null = null;
@@ -45,10 +49,25 @@ class App {
     if (e.key === 'Escape') this.gauntlet?.quit();
   };
 
-  constructor(private readonly mount: HTMLElement) {}
+  // macOS repeats combo on capture retry -> fire once per result
+  private readonly onScreenshotKey = (e: KeyboardEvent): void => {
+    const source = this.resultSource;
+    if (source === null || this.screenshotFired) return;
+    const method = screenshotMethod(e);
+    if (method === null) return;
+    this.screenshotFired = true;
+    track('screenshot_key', { source, method });
+  };
+
+  constructor(private readonly mount: HTMLElement) {
+    // Windows sends no keydown for PrintScreen
+    window.addEventListener('keydown', this.onScreenshotKey);
+    window.addEventListener('keyup', this.onScreenshotKey);
+  }
 
   showHome(): void {
     this.teardownRun();
+    this.resultSource = null;
     // dare buttons on result screen apply only inside challenge
     this.dare = null;
     clear(this.mount);
@@ -76,6 +95,7 @@ class App {
 
   showDare(dare: DareChallenge): void {
     this.dare = dare;
+    this.resultSource = null;
     clear(this.mount);
     this.mount.appendChild(
       createDare(dare, {
@@ -148,6 +168,7 @@ class App {
       return;
     }
     this.currentLevelId = levelId;
+    this.resultSource = null;
     // per run -> daily started across UTC midnight gets current day
     this.currentDailyDay = isDailyLevel(levelId) ? dailyDayNumber() : null;
     this.probeIndex = 0;
@@ -298,6 +319,8 @@ class App {
         { retrospectivePrediction: !this.predictionRun, dayNumber: dailyDay, dare },
       ),
     );
+    this.resultSource = result.passed ? 'result-pass' : 'result-fail';
+    this.screenshotFired = false;
     track('result_viewed', {
       level_id: result.levelId,
       passed: result.passed,
