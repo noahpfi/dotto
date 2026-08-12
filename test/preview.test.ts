@@ -49,13 +49,7 @@ describe('static preview tags', () => {
         levelId: 1,
         chain: 1,
         dayNumber: null,
-      }, {
-        passed: false,
-        reason: 'quit',
-        probesShown: 1,
-        answeringMs: null,
-        direction: 'open',
-      }),
+      }, { direction: 'open' }),
     );
     expect(url.pathname).toBe(DARE_PATH);
   });
@@ -98,12 +92,11 @@ describe('applyDarePreview', () => {
     expect(out).not.toContain('dotto #7');
   });
 
-  it('points the card image at the renderer with full screen state', () => {
-    const out = applyDarePreview(indexHtml, url('?d=47000&l=1&p=0&r=0&v=2'), ORIGIN);
-    expect(out).toContain(
-      'property="og:image" content="https://trydotto.live/api/og?d=47000&amp;l=1&amp;p=0&amp;r=0&amp;v=2"',
-    );
-    expect(out).toContain('name="twitter:image" content="https://trydotto.live/api/og?');
+  it('leaves the image pointing at the static card', () => {
+    // og:image must point at existing static asset
+    const out = applyDarePreview(indexHtml, url('?d=47000&l=1'), ORIGIN);
+    expect(out).toContain('property="og:image" content="https://trydotto.live/og.png"');
+    expect(out).not.toContain('/api/og');
   });
 
   it('leaves the page unchanged without a valid dare', () => {

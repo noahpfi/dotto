@@ -129,13 +129,7 @@ export function createResult(
       direction,
     };
     // parseDare reads only target, level, chain, day
-    const url = buildDareUrl(shareUrl(), outgoing, {
-      passed: result.passed,
-      reason: result.reason,
-      probesShown: result.probesShown,
-      answeringMs: options.dare === null ? null : options.dare.targetMs,
-      direction,
-    });
+    const url = buildDareUrl(shareUrl(), outgoing, { direction });
     const text = shareText(context, url);
     track('share_clicked', {
       source: shareSource,

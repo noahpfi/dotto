@@ -49,10 +49,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "api/og.ts": {
-      "includeFiles": "node_modules/@vercel/og/dist/**"
-    }
-  }
+  ]
 }

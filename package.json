@@ -18,7 +18,6 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@vercel/og": "0.8.5",
     "html-to-image": "1.11.13",
     "posthog-js": "^1.414.0"
   }

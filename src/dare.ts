@@ -18,25 +18,10 @@ const MAX_CHAIN = 99;
 
 const PARAM = { target: 'd', level: 'l', chain: 'n', day: 'day' } as const;
 
-// parseDare ignores these keys
-const PREVIEW_PARAM = {
-  passed: 'p',
-  reason: 'r',
-  probesShown: 'v',
-  answering: 't',
-  direction: 'w',
-} as const;
-
-// append only, old links carry old codes
-export const REASON_CODES: readonly string[] = ['tap-nothing', 'left-screen', 'missed-probe', 'quit'];
+// parseDare ignores this key
+const PREVIEW_PARAM = { direction: 'w' } as const;
 
 export interface DarePreview {
-  readonly passed: boolean;
-  // null when passed
-  readonly reason: string | null;
-  readonly probesShown: number;
-  // target sender was answering, when in chain
-  readonly answeringMs: number | null;
   readonly direction: 'open' | 'back' | 'onward';
 }
 
@@ -81,14 +66,7 @@ export function buildDareUrl(base: string, dare: DareChallenge, preview: DarePre
   query.set(PARAM.chain, String(Math.min(Math.max(1, Math.round(dare.chain)), MAX_CHAIN)));
   if (dare.dayNumber !== null) query.set(PARAM.day, String(dare.dayNumber));
 
-  query.set(PREVIEW_PARAM.passed, preview.passed ? '1' : '0');
   query.set(PREVIEW_PARAM.direction, preview.direction.charAt(0));
-  query.set(PREVIEW_PARAM.probesShown, String(Math.max(0, Math.round(preview.probesShown))));
-  const reasonCode = preview.reason === null ? -1 : REASON_CODES.indexOf(preview.reason);
-  if (reasonCode >= 0) query.set(PREVIEW_PARAM.reason, String(reasonCode));
-  if (preview.answeringMs !== null) {
-    query.set(PREVIEW_PARAM.answering, String(Math.round(preview.answeringMs)));
-  }
 
   try {
     const url = new URL(DARE_PATH, base);

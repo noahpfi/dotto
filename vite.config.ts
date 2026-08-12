@@ -2,12 +2,10 @@ import { defineConfig, type Plugin } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import geoHandler from './api/geo.ts';
 import { applyDarePreview } from './api/dare.ts';
-import { renderCard } from './api/og.ts';
 
 // unset DEV_GEO_COUNTRY fails closed
 // narrow decl keeps @types/node globals out of browser-only code
 declare const process: { env: Record<string, string | undefined> };
-declare const Buffer: { from(input: ArrayBuffer): Uint8Array };
 
 function devGeo(): Plugin {
   return {
@@ -42,32 +40,10 @@ function devDarePreview(): Plugin {
 }
 
 // subpath deploy needs change
-// real card renderer at /api/og in dev
-function devOgImage(): Plugin {
-  return {
-    name: 'dotto-dev-og-image',
-    configureServer(server) {
-      server.middlewares.use('/api/og', (req: { url?: string }, res) => {
-        const origin = process.env.DEV_PUBLIC_ORIGIN ?? 'http://localhost:5200';
-        void renderCard(new URL(`${origin}/api/og${req.url ?? ''}`))
-          .arrayBuffer()
-          .then((buffer) => {
-            res.setHeader('content-type', 'image/png');
-            res.end(Buffer.from(buffer));
-          })
-          .catch((err: unknown) => {
-            console.warn('dotto: dev og image failed —', err);
-            res.statusCode = 500;
-            res.end('og render failed');
-          });
-      });
-    },
-  };
-}
 
 export default defineConfig({
   base: '/',
-  plugins: [tailwindcss(), devGeo(), devDarePreview(), devOgImage()],
+  plugins: [tailwindcss(), devGeo(), devDarePreview()],
   // mirrors /ingest rewrite in vercel.json -> first-party api_host works in dev
   server: {
     // true would disable DNS-rebinding protection

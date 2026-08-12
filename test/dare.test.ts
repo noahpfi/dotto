@@ -78,13 +78,7 @@ describe('parseDare', () => {
   });
 });
 
-const preview: DarePreview = {
-  passed: false,
-  reason: 'tap-nothing',
-  probesShown: 2,
-  answeringMs: null,
-  direction: 'open',
-};
+const preview: DarePreview = { direction: 'open' };
 
 describe('buildDareUrl', () => {
   it('round-trips through parseDare', () => {
