@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DIR = new URL('../api/fonts/', import.meta.url).pathname;
+const DIR = new URL('../lib/fonts/', import.meta.url).pathname;
 const weights = [400, 600];
 
 const parts = weights.map((w) => {

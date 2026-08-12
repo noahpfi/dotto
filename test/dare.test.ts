@@ -6,6 +6,7 @@ import {
   parseDare,
   type DareChallenge,
   type DarePreview,
+  DARE_PATH,
 } from '../src/dare';
 import { DAILY_LEVEL_ID, MAX_LEVEL_ID } from '../src/levels';
 
@@ -98,11 +99,13 @@ describe('buildDareUrl', () => {
     expect(parseDare(url.search)).toEqual(dare);
   });
 
-  it('preserves an existing path and query on the share base', () => {
-    const url = new URL(buildDareUrl('https://trydotto.live/play?ref=ig', challenge(), preview));
-    expect(url.pathname).toBe('/play');
-    expect(url.searchParams.get('ref')).toBe('ig');
-    expect(url.searchParams.get('d')).toBe('47000');
+  it('always uses the dare path regardless of share base', () => {
+    // path fixed to one Vercel rewrites
+    for (const base of ['https://trydotto.live', 'https://trydotto.live/', 'https://trydotto.live/play']) {
+      const url = new URL(buildDareUrl(base, challenge(), preview));
+      expect(url.pathname, base).toBe(DARE_PATH);
+      expect(url.searchParams.get('d')).toBe('47000');
+    }
   });
 
   it('rounds a fractional survival', () => {
@@ -114,8 +117,8 @@ describe('buildDareUrl', () => {
   it('falls back to concatenation on a misconfigured share base', () => {
     // bad VITE_SHARE_URL -> ugly link, never exception in click handler
     const out = buildDareUrl('not a url', challenge(), preview);
-    expect(out).toContain('?d=47000');
-    expect(buildDareUrl('not a url?x=1', challenge(), preview)).toContain('&d=47000');
+    expect(out).toContain(`${DARE_PATH}?d=47000`);
+    expect(buildDareUrl('not a url/', challenge(), preview)).toContain(`${DARE_PATH}?d=47000`);
   });
 });
 

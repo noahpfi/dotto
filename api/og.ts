@@ -1,5 +1,5 @@
 import { ImageResponse } from '@vercel/og';
-import { INTER_400, INTER_600 } from './fonts/inter.ts';
+import { INTER_400, INTER_600 } from '../lib/fonts/inter';
 
 // node-runtime link-preview card from dare query, constants mirror src/ via test/og.test.ts
 export const config = { runtime: 'nodejs' };

@@ -68,7 +68,7 @@ export function applyDarePreview(html: string, url: URL, origin: string): string
   const image = `${origin}/api/og${url.search}`;
   let out = replaceMeta(html, 'property', 'og:title', preview.title);
   out = replaceMeta(out, 'property', 'og:description', preview.description);
-  out = replaceMeta(out, 'property', 'og:url', `${origin}/${url.search}`);
+  out = replaceMeta(out, 'property', 'og:url', `${origin}/d${url.search}`);
   out = replaceMeta(out, 'property', 'og:image', image);
   out = replaceMeta(out, 'property', 'og:image:alt', preview.title);
   out = replaceMeta(out, 'name', 'twitter:title', preview.title);

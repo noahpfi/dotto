@@ -6,8 +6,7 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/",
-      "has": [{ "type": "query", "key": "d" }],
+      "source": "/d",
       "destination": "/api/dare"
     },
     {

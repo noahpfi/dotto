@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import indexHtml from '../index.html?raw';
 import vercelJson from '../vercel.json?raw';
 import { applyDarePreview } from '../api/dare.ts';
-import { parseDare } from '../src/dare';
+import { DARE_PATH, buildDareUrl, parseDare } from '../src/dare';
 
 // receiving apps build share card from these tags
 describe('static preview tags', () => {
@@ -31,14 +31,33 @@ describe('static preview tags', () => {
   });
 
   it('routes dare links through the rewrite function', () => {
-    // rewrite serves tags to crawlers running no JS
+    // Vercel applies rewrites after filesystem
     const config = JSON.parse(vercelJson) as {
-      rewrites: { source: string; has?: { type: string; key: string }[]; destination: string }[];
+      rewrites: { source: string; destination: string }[];
     };
     const rule = config.rewrites.find((r) => r.destination === '/api/dare');
     expect(rule).toBeDefined();
-    expect(rule?.source).toBe('/');
-    expect(rule?.has).toEqual([{ type: 'query', key: 'd' }]);
+    expect(rule?.source).toBe(DARE_PATH);
+    expect(rule?.source).not.toBe('/');
+  });
+
+  it('sends every dare through the rewrite path', () => {
+    // rewrite source and dare link path must match
+    const url = new URL(
+      buildDareUrl('https://trydotto.live', {
+        targetMs: 47_000,
+        levelId: 1,
+        chain: 1,
+        dayNumber: null,
+      }, {
+        passed: false,
+        reason: 'quit',
+        probesShown: 1,
+        answeringMs: null,
+        direction: 'open',
+      }),
+    );
+    expect(url.pathname).toBe(DARE_PATH);
   });
 });
 
@@ -53,7 +72,7 @@ describe('applyDarePreview', () => {
     expect(out).toContain(`property="og:title" content="${taunt}"`);
     expect(out).toContain(`name="twitter:title" content="${taunt}"`);
     expect(out).toContain(`<title>${taunt}</title>`);
-    expect(out).toContain('property="og:url" content="https://trydotto.live/?d=47000&amp;l=1&amp;n=2"');
+    expect(out).toContain('property="og:url" content="https://trydotto.live/d?d=47000&amp;l=1&amp;n=2"');
   });
 
   it('says whose turn it is on a volley back', () => {

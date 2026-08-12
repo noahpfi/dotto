@@ -70,6 +70,9 @@ export function parseDare(search: string): DareChallenge | null {
   };
 }
 
+// Vercel applies rewrites after filesystem -> rewrite on / never fires
+export const DARE_PATH = '/d';
+
 // parses base, falls back to concatenation if VITE_SHARE_URL is not URL
 export function buildDareUrl(base: string, dare: DareChallenge, preview: DarePreview): string {
   const query = new URLSearchParams();
@@ -88,12 +91,11 @@ export function buildDareUrl(base: string, dare: DareChallenge, preview: DarePre
   }
 
   try {
-    const url = new URL(base);
+    const url = new URL(DARE_PATH, base);
     for (const [key, value] of query) url.searchParams.set(key, value);
     return url.toString();
   } catch {
-    const separator = base.includes('?') ? '&' : '?';
-    return `${base}${separator}${query.toString()}`;
+    return `${base.replace(/\/$/, '')}${DARE_PATH}?${query.toString()}`;
   }
 }
 
