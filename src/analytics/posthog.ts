@@ -56,8 +56,23 @@ export function initPostHog(): Promise<PostHog | null> {
   return loading;
 }
 
-// super-props like experiment arm, buffered until library loads
-let superProps: Record<string, unknown> = {};
+// all other hostnames = dev
+export const PRODUCTION_HOSTS: readonly string[] = ['trydotto.live', 'www.trydotto.live'];
+
+export type Environment = 'production' | 'dev';
+
+// production allow-list tags deployment -> dev and tunnel traffic separable
+export function environmentFor(hostname: string | null | undefined): Environment {
+  if (typeof hostname !== 'string') return 'dev';
+  return PRODUCTION_HOSTS.includes(hostname.trim().toLowerCase()) ? 'production' : 'dev';
+}
+
+function currentEnvironment(): Environment {
+  return environmentFor(typeof window === 'undefined' ? null : window.location.hostname);
+}
+
+// super-props like deployment + experiment arm, buffered until library loads
+let superProps: Record<string, unknown> = { env: currentEnvironment() };
 
 export function registerSuperProps(props: Record<string, unknown>): void {
   superProps = { ...superProps, ...props };
