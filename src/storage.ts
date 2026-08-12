@@ -9,10 +9,12 @@ export interface SaveData {
   best: Record<string, number>;
   attempts: number;
   fails: Record<string, number>;
+  // daily day number -> longest survivedMs, keyed by number to match shared #12
+  dailyBest: Record<string, number>;
 }
 
 function defaults(): SaveData {
-  return { unlockedLevel: 1, best: {}, attempts: 0, fails: {} };
+  return { unlockedLevel: 1, best: {}, attempts: 0, fails: {}, dailyBest: {} };
 }
 
 function isNumberRecord(value: unknown): value is Record<string, number> {
@@ -37,6 +39,8 @@ function parse(raw: string): SaveData | null {
     best: v.best,
     attempts: Math.max(0, Math.trunc(v.attempts)),
     fails: v.fails,
+    // missing in older saves
+    dailyBest: isNumberRecord(v.dailyBest) ? v.dailyBest : {},
   };
 }
 
@@ -67,17 +71,28 @@ export function save(data: SaveData): void {
 }
 
 // pure apart from write
-export function recordAttempt(data: SaveData, result: AttemptResult): SaveData {
+export function recordAttempt(
+  data: SaveData,
+  result: AttemptResult,
+  dailyDay: number | null = null,
+): SaveData {
   const key = String(result.levelId);
   const next: SaveData = {
     unlockedLevel: data.unlockedLevel,
     best: { ...data.best },
     fails: { ...data.fails },
     attempts: data.attempts + 1,
+    dailyBest: { ...data.dailyBest },
   };
 
   const previousBest = next.best[key] ?? 0;
   if (result.survivedMs > previousBest) next.best[key] = result.survivedMs;
+
+  if (dailyDay !== null) {
+    const dayKey = String(dailyDay);
+    const previousDay = next.dailyBest[dayKey] ?? -1;
+    if (result.survivedMs > previousDay) next.dailyBest[dayKey] = result.survivedMs;
+  }
 
   if (result.passed) {
     next.unlockedLevel = Math.min(Math.max(next.unlockedLevel, result.levelId + 1), MAX_LEVEL_ID);
@@ -88,4 +103,20 @@ export function recordAttempt(data: SaveData, result: AttemptResult): SaveData {
 
   save(next);
   return next;
+}
+
+// -1 sentinel lets 0ms count
+export function playedDaily(data: SaveData, dayNumber: number): boolean {
+  return data.dailyBest[String(dayNumber)] !== undefined;
+}
+
+// consecutive played days ending today, or yesterday if today unplayed
+export function dailyStreak(data: SaveData, dayNumber: number): number {
+  let day = playedDaily(data, dayNumber) ? dayNumber : dayNumber - 1;
+  let streak = 0;
+  while (day > 0 && playedDaily(data, day)) {
+    streak += 1;
+    day -= 1;
+  }
+  return streak;
 }

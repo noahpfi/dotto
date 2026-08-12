@@ -1,5 +1,5 @@
 import { envOr } from './env';
-import { fetchGeoVerdict } from './geo';
+import { whenGeoResolved } from './geo';
 
 // loads only where ePrivacy Art 5(3) requires no prior consent
 const PIXEL_ID = envOr(import.meta.env.VITE_META_PIXEL_ID, '');
@@ -67,7 +67,7 @@ export async function initPixel(): Promise<void> {
   if (started || !isPixelConfigured()) return;
   started = true;
 
-  const verdict = await fetchGeoVerdict();
+  const verdict = await whenGeoResolved();
   if (!verdict.pixel) return;
 
   loadSnippet();

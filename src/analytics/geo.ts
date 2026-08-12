@@ -36,3 +36,20 @@ export async function fetchGeoVerdict(): Promise<GeoVerdict> {
     return denied;
   }
 }
+
+// memoised -> pixel gate + pricing share one request, one country per visit
+let inflight: Promise<GeoVerdict> | null = null;
+let settled: GeoVerdict | null = null;
+
+export async function whenGeoResolved(): Promise<GeoVerdict> {
+  inflight ??= fetchGeoVerdict().then((verdict) => {
+    settled = verdict;
+    return verdict;
+  });
+  return inflight;
+}
+
+// never fetches
+export function geoCountry(): string | null {
+  return settled === null ? null : settled.country;
+}

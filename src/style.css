@@ -91,6 +91,33 @@ body {
   }
 }
 
+/* portrait phones, trims gaps, padding, decor by ~120px -> share buttons clear fold */
+@media (max-width: 700px) {
+  .short-tight {
+    padding-top: 1.25rem;
+  }
+
+  /* emitted after Tailwind gap utilities -> these rules win */
+  .split,
+  .split > * {
+    gap: 1rem;
+  }
+
+  /* bounded by viewport height too -> buttons stay on screen */
+  .display-number {
+    font-size: min(26vw, 13vh) !important;
+  }
+
+  .split svg {
+    max-height: 5rem;
+  }
+
+  .split button {
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+  }
+}
+
 /* landscape phones + short windows, padding, gaps, display type overflow first */
 @media (max-height: 620px) and (min-width: 700px) {
   .short-tight {

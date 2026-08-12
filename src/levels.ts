@@ -44,7 +44,25 @@ export const LEVELS: readonly LevelSpec[] = [
   },
 ];
 
+// same probe schedule for everyone each day
+export const DAILY_LEVEL: LevelSpec = {
+  id: 0,
+  label: 'today',
+  durationMs: 60_000,
+  firstProbeGapMs: [3500, 6000],
+  probeGapMs: [16_000, 26_000],
+  probeWindowMs: 3000,
+};
+
+export const DAILY_LEVEL_ID = DAILY_LEVEL.id;
+
+export function isDailyLevel(id: number): boolean {
+  return id === DAILY_LEVEL_ID;
+}
+
+// LEVELS stays ladder-only
 export function levelById(id: number): LevelSpec | null {
+  if (id === DAILY_LEVEL_ID) return DAILY_LEVEL;
   return LEVELS.find((l) => l.id === id) ?? null;
 }
 

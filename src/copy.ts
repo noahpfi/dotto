@@ -1,3 +1,4 @@
+import { DWELL_MEAN_MS } from './benchmarks';
 import type { FailReason } from './engine/types';
 
 // no string may claim dotto improves or assesses attention, per FTC Lumosity and MDCG 2019-11
@@ -57,17 +58,80 @@ export function appVerdict(
   return `${claim} ${formatDuration(predictedMs)}. You held ${held}.`;
 }
 
-export const APP_CTA_LABEL = 'I want the app';
+// fake-door button, per-country price from pricing.ts appended
+export function appCtaLabel(price: string): string {
+  return `I want the app — ${price}`;
+}
+
+export const APP_PRICE_NOTE = 'One time. No subscription.';
+
 // promises run history, never improvement
 export const APP_HEADLINE = 'Five minutes a day.';
 export const APP_PITCH = 'Make it a habit. One dot, every morning.';
-export const APP_NOT_OUT = 'Not out yet. You can play in the browser in the meantime.';
+// required while price displays
+export const APP_NOT_OUT =
+  'Not out yet — nothing was charged. You can play in the browser in the meantime.';
 
-export function shareText(survivedMs: number, passed: boolean, url: string): string {
-  const t = formatDuration(survivedMs);
-  return passed
-    ? `I held the dot for ${t}. The average person lasts 47 seconds. ${url}`
-    : `I lasted ${t} staring at a dot. The average person lasts 47 seconds. ${url}`;
+// changes sentence only, never link
+export type ShareDirection = 'open' | 'back' | 'onward';
+
+export interface ShareContext {
+  readonly survivedMs: number;
+  readonly percentile: number;
+  // null = no claim made
+  readonly predictedMs: number | null;
+  // set on daily run -> number refers to shared daily dot
+  readonly dayNumber: number | null;
+  readonly direction: ShareDirection;
+}
+
+// ends on colon, link follows
+export function shareMessage(ctx: ShareContext): string {
+  const held = formatDuration(ctx.survivedMs);
+  const anchor = `(avg person lasts ${Math.round(DWELL_MEAN_MS / 1000)}s)`;
+  // only volley back names whose turn it is
+  if (ctx.direction === 'back') return `Your move. Bet you won’t beat my ${held} ${anchor}:`;
+  const opener = ctx.dayNumber === null ? 'Bet' : `${dailyShareLabel(ctx.dayNumber)} — bet`;
+  return `${opener} you won’t last longer than my ${held} ${anchor}:`;
+}
+
+export function shareText(ctx: ShareContext, url: string): string {
+  return `${shareMessage(ctx)} ${url}`;
+}
+
+// kept beside share copy -> shared string and on-screen label match
+export function dailyShareLabel(dayNumber: number): string {
+  return `${BRAND} #${dayNumber}`;
+}
+
+export const SHARE_LABEL: Record<ShareDirection, string> = {
+  open: 'Dare a friend',
+  back: 'Send it back',
+  onward: 'Dare someone else',
+};
+
+export function dareHeadline(targetMs: number): string {
+  return `Someone says you can’t hold ${formatDuration(targetMs)}.`;
+}
+
+// sole instruction on dare screen, keeps start button above fold
+export const DARE_SUBLINE = 'Focus on the dot. Tap only when it goes hollow. Beat the number.';
+export const DARE_ACCEPT = 'Take it';
+export const DARE_DECLINE = 'Just play normally';
+
+export function dareChainNote(chain: number): string | null {
+  return chain >= 3 ? `Passed along ${chain} times before it reached you.` : null;
+}
+
+// shown to dared player in place of pass/fail subline
+export function dareTargetLine(targetMs: number): string {
+  return `The number to beat was ${formatDuration(targetMs)}.`;
+}
+
+export function dareVerdict(survivedMs: number, targetMs: number, beat: boolean): string {
+  return beat
+    ? `Beaten by ${formatDuration(survivedMs - targetMs)}.`
+    : `${formatDuration(targetMs - survivedMs)} short.`;
 }
 
 export function formatDuration(ms: number): string {

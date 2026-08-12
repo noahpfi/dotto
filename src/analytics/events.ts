@@ -1,7 +1,16 @@
 // durations in _ms, ratios 0 to 1, no personal identifiers
 export type DottoEvent =
   // returning comes from local save, not cross-device identity
-  | { name: 'home_viewed'; props: { unlocked_level: number; attempts: number; returning: boolean } }
+  | {
+      name: 'home_viewed';
+      props: {
+        unlocked_level: number;
+        attempts: number;
+        returning: boolean;
+        daily_streak: number;
+        daily_played: boolean;
+      };
+    }
   | { name: 'prediction_shown'; props: { level_id: number } }
   | {
       name: 'prediction_answered';
@@ -21,6 +30,10 @@ export type DottoEvent =
         predicted_ms: number | null;
         is_prediction_run: boolean;
         attempt_number: number;
+        // day number for daily dot at level 0, else null
+        daily_day: number | null;
+        // chain length of dare being answered, else null
+        dare_chain: number | null;
       };
     }
   // index is 1-based within run
@@ -45,6 +58,8 @@ export type DottoEvent =
         // below 1 = overclaimed
         prediction_ratio: number | null;
         is_prediction_run: boolean;
+        daily_day: number | null;
+        dare_chain: number | null;
       };
     }
   | { name: 'level_unlocked'; props: { level_id: number } }
@@ -52,12 +67,50 @@ export type DottoEvent =
       name: 'result_viewed';
       props: { level_id: number; passed: boolean; reason: string | null; survived_ms: number; dwell_percentile: number };
     }
-  | { name: 'share_clicked'; props: { source: string; level_id: number; passed: boolean; survived_ms: number } }
-  | { name: 'share_completed'; props: { source: string; method: 'web-share' | 'clipboard' } }
-  | { name: 'share_dismissed'; props: { source: string } }
+  // chain = hop count link carries
+  | {
+      name: 'share_clicked';
+      props: {
+        source: string;
+        level_id: number;
+        passed: boolean;
+        survived_ms: number;
+        direction: 'open' | 'back' | 'onward';
+        chain: number;
+      };
+    }
+  | {
+      name: 'share_completed';
+      props: {
+        source: string;
+        method: 'web-share' | 'clipboard';
+        direction: 'open' | 'back' | 'onward';
+        chain: number;
+      };
+    }
+  | { name: 'share_dismissed'; props: { source: string; direction: 'open' | 'back' | 'onward' } }
   | { name: 'share_failed'; props: { source: string } }
+  // only measurable signal for manual-post route
+  | { name: 'image_saved'; props: { source: string; ok: boolean } }
+  // denominator for dare loop
+  | { name: 'dare_landed'; props: { level_id: number; target_ms: number; chain: number; daily: boolean } }
+  | { name: 'dare_accepted'; props: { level_id: number; target_ms: number; chain: number } }
+  | { name: 'dare_declined'; props: { chain: number } }
+  | {
+      name: 'dare_result';
+      props: { level_id: number; target_ms: number; survived_ms: number; chain: number; beat: boolean };
+    }
   // fake-door tap, rate decides whether app gets built
-  | { name: 'app_intent'; props: { source: string; survived_ms: number | null; predicted_ms: number | null } }
+  | {
+      name: 'app_intent';
+      props: {
+        source: string;
+        survived_ms: number | null;
+        predicted_ms: number | null;
+        price: number;
+        currency: string;
+      };
+    }
   | { name: 'waitlist_submitted'; props: { source: string } }
   | { name: 'waitlist_failed'; props: { source: string; status: number | null } };
 

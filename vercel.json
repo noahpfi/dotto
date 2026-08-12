@@ -6,6 +6,11 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/",
+      "has": [{ "type": "query", "key": "d" }],
+      "destination": "/api/dare"
+    },
+    {
       "source": "/ingest/static/(.*)",
       "destination": "https://eu-assets.i.posthog.com/static/$1"
     },

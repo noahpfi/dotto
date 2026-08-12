@@ -4,17 +4,24 @@ import {
   failSubline,
   PASS_HEADLINE,
   PASS_SUBLINE,
+  SHARE_LABEL,
+  type ShareDirection,
+  dailyShareLabel,
+  dareTargetLine,
+  dareVerdict,
   formatDuration,
   appVerdict,
   shareText,
 } from '../copy';
+import { beatsDare, nextDare, buildDareUrl, type DareChallenge } from '../dare';
+import { captureScreen, shareCardFilename } from '../sharecard';
 import type { AttemptResult } from '../engine/types';
-import { MAX_LEVEL_ID, levelById } from '../levels';
+import { MAX_LEVEL_ID, isDailyLevel, levelById } from '../levels';
 import { fetchLevelStats } from '../stats';
 import { track } from '../track';
 import { el } from './dom';
 import { createScale } from './scale';
-import { DWELL_MODEL_NOTE, benchmarkAhead, benchmarkCleared } from '../benchmarks';
+import { DWELL_MODEL_NOTE, benchmarkAhead, benchmarkCleared, dwellPercentile } from '../benchmarks';
 import { getPrediction } from '../prediction';
 import { createAppSection } from './appcta';
 import { envOr } from '../analytics/env';
@@ -27,6 +34,8 @@ export interface ResultHandlers {
 export interface ResultOptions {
   // true for every run except one session prediction was made for
   readonly retrospectivePrediction: boolean;
+  readonly dayNumber: number | null;
+  readonly dare: DareChallenge | null;
 }
 
 function shareUrl(): string {
@@ -47,7 +56,7 @@ export function createResult(
       'flex flex-col items-center justify-center gap-7 text-center',
   );
 
-  // portrait order must stay number, chart, meta, app, buttons, wordmark, sources
+  // portrait order must stay number, chart, buttons, app, wordmark, sources
   const split = el('div', 'split gap-7');
   const paneA = el('div', 'split-a gap-7');
   const paneB = el('div', 'split-b gap-7');
@@ -63,18 +72,29 @@ export function createResult(
       formatDuration(result.survivedMs),
     ),
   );
+  // clearing level below dared time still = loss
+  const beat = options.dare === null ? null : beatsDare(result.survivedMs, options.dare);
   block.appendChild(
     el(
       'h2',
       'max-w-xs text-2xl font-medium leading-snug text-bone',
-      result.passed ? PASS_HEADLINE : FAIL_HEADLINE[result.reason ?? 'quit'],
+      options.dare !== null && beat !== null
+        ? dareVerdict(result.survivedMs, options.dare.targetMs, beat)
+        : result.passed
+          ? PASS_HEADLINE
+          : FAIL_HEADLINE[result.reason ?? 'quit'],
     ),
   );
   block.appendChild(
     el(
       'p',
       'max-w-xs text-sm leading-relaxed text-bone/45',
-      result.passed ? PASS_SUBLINE : failSubline(result.reason ?? 'quit', result.probesShown),
+      // dare target in subline -> saves vertical space
+      options.dare !== null
+        ? dareTargetLine(options.dare.targetMs)
+        : result.passed
+          ? PASS_SUBLINE
+          : failSubline(result.reason ?? 'quit', result.probesShown),
     ),
   );
   paneA.appendChild(block);
@@ -88,65 +108,83 @@ export function createResult(
     scaleSlot.replaceChildren(createScale(result, stats));
   });
 
-  const meta = el(
-    'div',
-    'flex flex-wrap items-center justify-center gap-x-5 gap-y-1 font-mono text-[11px] uppercase tracking-widest text-bone/30',
-  );
-  meta.appendChild(el('span', '', level !== null ? level.label : `level ${result.levelId}`));
-  meta.appendChild(el('span', '', `${result.probesHit}/${result.probesShown} tapped`));
-  paneB.appendChild(meta);
-
-  if (result.passed && result.levelId < MAX_LEVEL_ID) {
-    const next = levelById(result.levelId + 1);
-    if (next !== null) paneB.appendChild(el('p', 'text-sm text-bone/60', `${next.label} is open.`));
-  }
-
-  // app card above buttons, next to number contradicting player's prediction
   const predicted = getPrediction();
-  paneB.appendChild(
-    createAppSection(result.passed ? 'result-pass' : 'result-fail', {
-      verdict: appVerdict(result.survivedMs, predicted, options.retrospectivePrediction),
-      survivedMs: result.survivedMs,
-      ...(predicted !== null ? { predictedMs: predicted } : {}),
-    }),
-  );
-
   const actions = el('div', 'flex w-full max-w-sm flex-col gap-2.5');
-  const share = el(
-    'button',
-    'rounded-full bg-bone px-6 py-4 text-sm font-semibold text-ink active:scale-[0.99]',
-    result.passed ? 'Share it' : 'Share your fail',
-  );
-  share.type = 'button';
   const shareStatus = el('div', 'min-h-4 text-xs text-bone/40');
   const shareSource = result.passed ? 'result-pass' : 'result-fail';
-  share.addEventListener('click', () => {
-    const text = shareText(result.survivedMs, result.passed, shareUrl());
+
+  const cardLabel =
+    options.dayNumber !== null && isDailyLevel(result.levelId)
+      ? dailyShareLabel(options.dayNumber)
+      : (level?.label ?? BRAND);
+
+  // chain players get both reply + pass-on buttons
+  const sendDare = async (direction: ShareDirection): Promise<void> => {
+    const outgoing = nextDare(result.survivedMs, result.levelId, options.dayNumber, options.dare);
+    const context = {
+      survivedMs: result.survivedMs,
+      percentile: dwellPercentile(result.survivedMs),
+      predictedMs: predicted,
+      dayNumber: options.dayNumber,
+      direction,
+    };
+    // parseDare reads only target, level, chain, day
+    const url = buildDareUrl(shareUrl(), outgoing, {
+      passed: result.passed,
+      reason: result.reason,
+      probesShown: result.probesShown,
+      answeringMs: options.dare === null ? null : options.dare.targetMs,
+      direction,
+    });
+    const text = shareText(context, url);
     track('share_clicked', {
       source: shareSource,
       level_id: result.levelId,
       passed: result.passed,
       survived_ms: Math.round(result.survivedMs),
+      direction,
+      chain: outgoing.chain,
     });
+    const done = (method: 'web-share' | 'clipboard'): void =>
+      track('share_completed', { source: shareSource, method, direction, chain: outgoing.chain });
+
     if (typeof navigator.share === 'function') {
+      // bare URL only -> receiving app builds preview from Open Graph tags
       void navigator
-        .share({ title: BRAND, text })
-        .then(() => track('share_completed', { source: shareSource, method: 'web-share' }))
+        .share({ url })
+        .then(() => done('web-share'))
         .catch((err: unknown) => {
           // AbortError = player closed sheet, tracked apart from failures
           if (err instanceof DOMException && err.name === 'AbortError') {
-            track('share_dismissed', { source: shareSource });
+            track('share_dismissed', { source: shareSource, direction });
             return;
           }
           console.warn('dotto: share failed, falling back to clipboard —', err);
-          void copyToClipboard(text, shareStatus, shareSource);
+          void copyToClipboard(text, shareStatus, shareSource, direction, outgoing.chain);
         });
       return;
     }
-    void copyToClipboard(text, shareStatus, shareSource);
-  });
-  actions.append(share, shareStatus);
+    void copyToClipboard(text, shareStatus, shareSource, direction, outgoing.chain);
+  };
 
+  const shareButton = (direction: ShareDirection, primary: boolean): HTMLButtonElement => {
+    const button = el(
+      'button',
+      primary
+        ? 'rounded-full bg-bone px-6 py-4 text-sm font-semibold text-ink active:scale-[0.99]'
+        : 'rounded-full border border-bone/20 px-6 py-4 text-sm font-medium text-bone active:scale-[0.99]',
+      SHARE_LABEL[direction],
+    );
+    button.type = 'button';
+    button.addEventListener('click', () => void sendDare(direction));
+    return button;
+  };
+
+  if (options.dare !== null) {
+    actions.append(shareButton('back', true), shareButton('onward', false));
+  } else {
+    actions.appendChild(shareButton('open', true));
+  }
   const retry = el(
     'button',
     'rounded-full border border-bone/20 px-6 py-4 text-sm font-medium text-bone active:scale-[0.99]',
@@ -154,13 +192,38 @@ export function createResult(
   );
   retry.type = 'button';
   retry.addEventListener('click', handlers.onRetry);
+  actions.appendChild(retry);
+  actions.appendChild(shareStatus);
 
-  const home = el('button', 'px-6 py-2 text-sm text-bone/40', 'All levels');
+  // both exits in one row -> saves height
+  const exits = el('div', 'flex w-full flex-row items-center justify-center gap-6');
+  const saveImage = el('button', 'py-1 text-sm text-bone/40', 'Save image');
+  saveImage.type = 'button';
+  saveImage.addEventListener('click', () => {
+    void downloadCard(root, cardLabel, shareStatus, shareSource);
+  });
+  const home = el('button', 'py-1 text-sm text-bone/40', 'All levels');
   home.type = 'button';
   home.addEventListener('click', handlers.onHome);
+  exits.append(saveImage, home);
+  actions.appendChild(exits);
 
-  actions.append(retry, home);
   paneB.appendChild(actions);
+
+  // below buttons -> Again stays above fold on 600px screens
+  if (result.passed && result.levelId < MAX_LEVEL_ID) {
+    const next = levelById(result.levelId + 1);
+    if (next !== null) paneB.appendChild(el('p', 'text-sm text-bone/60', `${next.label} is open.`));
+  }
+
+  // app card below buttons -> share button stays above fold on phones
+  paneB.appendChild(
+    createAppSection(result.passed ? 'result-pass' : 'result-fail', {
+      verdict: appVerdict(result.survivedMs, predicted, options.retrospectivePrediction),
+      survivedMs: result.survivedMs,
+      ...(predicted !== null ? { predictedMs: predicted } : {}),
+    }),
+  );
 
   // wordmark on screenshot -> shared image points somewhere
   const mark = el('div', 'flex flex-row items-center gap-2 pt-2');
@@ -182,11 +245,41 @@ export function createResult(
   return root;
 }
 
-async function copyToClipboard(text: string, status: HTMLElement, source: string): Promise<void> {
+// saves screen as file, shows failure on screen
+async function downloadCard(
+  node: HTMLElement,
+  label: string,
+  status: HTMLElement,
+  source: string,
+): Promise<void> {
+  const blob = await captureScreen(node);
+  if (blob === null) {
+    status.textContent = 'This browser will not draw the image.';
+    track('image_saved', { source, ok: false });
+    return;
+  }
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = shareCardFilename(label);
+  link.click();
+  // sync revoke races Safari download
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+  status.textContent = 'Saved.';
+  track('image_saved', { source, ok: true });
+}
+
+async function copyToClipboard(
+  text: string,
+  status: HTMLElement,
+  source: string,
+  direction: ShareDirection,
+  chain: number,
+): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
     status.textContent = 'Copied. Go ruin someone else’s day.';
-    track('share_completed', { source, method: 'clipboard' });
+    track('share_completed', { source, method: 'clipboard', direction, chain });
   } catch (err) {
     console.warn('dotto: clipboard write failed —', err);
     status.textContent = text;

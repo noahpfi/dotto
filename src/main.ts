@@ -3,11 +3,14 @@ import './style.css';
 import { Gauntlet } from './engine/gauntlet';
 import type { AttemptResult, GauntletEvent } from './engine/types';
 import { dwellPercentile } from './benchmarks';
-import { levelById, levelForPrediction, longerLevel } from './levels';
+import { dailyDayNumber, dailyRandom } from './daily';
+import { beatsDare, parseDare, type DareChallenge } from './dare';
+import { DAILY_LEVEL_ID, isDailyLevel, levelById, levelForPrediction, longerLevel } from './levels';
 import { getPrediction, getPredictionArm, setPrediction } from './prediction';
-import { load, recordAttempt, type SaveData } from './storage';
+import { dailyStreak, load, playedDaily, recordAttempt, type SaveData } from './storage';
 import { initAnalytics, setTrackContext, track } from './track';
 import { clear } from './ui/dom';
+import { createDare } from './ui/dare';
 import { createHome } from './ui/home';
 import { PlayView } from './ui/play';
 import { createPredict } from './ui/predict';
@@ -24,6 +27,9 @@ class App {
   private currentLevelId = 1;
   // true only for single run session prediction was made for
   private predictionRun = false;
+  private currentDailyDay: number | null = null;
+  // kept across retries, cleared on return home
+  private dare: DareChallenge | null = null;
 
   // per-run analytics state, reset in startLevel
   private probeIndex = 0;
@@ -43,22 +49,66 @@ class App {
 
   showHome(): void {
     this.teardownRun();
+    // dare buttons on result screen apply only inside challenge
+    this.dare = null;
     clear(this.mount);
+    const day = dailyDayNumber();
+    const streak = dailyStreak(this.save, day);
     this.mount.appendChild(
-      createHome(this.save, {
-        onStart: (levelId) => this.beginLevel(levelId),
-        wakeLockUnsupported: !WAKE_LOCK_SUPPORTED,
-      }),
+      createHome(
+        this.save,
+        { dayNumber: day, streak },
+        {
+          onStart: (levelId) => this.beginLevel(levelId),
+          onStartDaily: () => this.beginLevel(DAILY_LEVEL_ID),
+          wakeLockUnsupported: !WAKE_LOCK_SUPPORTED,
+        },
+      ),
     );
     track('home_viewed', {
       unlocked_level: this.save.unlockedLevel,
       attempts: this.save.attempts,
       returning: this.save.attempts > 0,
+      daily_streak: streak,
+      daily_played: playedDaily(this.save, day),
+    });
+  }
+
+  showDare(dare: DareChallenge): void {
+    this.dare = dare;
+    clear(this.mount);
+    this.mount.appendChild(
+      createDare(dare, {
+        onAccept: () => {
+          track('dare_accepted', {
+            level_id: dare.levelId,
+            target_ms: dare.targetMs,
+            chain: dare.chain,
+          });
+          this.beginLevel(dare.levelId);
+        },
+        onDecline: () => {
+          track('dare_declined', { chain: dare.chain });
+          this.showHome();
+        },
+      }),
+    );
+    track('dare_landed', {
+      level_id: dare.levelId,
+      target_ms: dare.targetMs,
+      chain: dare.chain,
+      daily: isDailyLevel(dare.levelId),
     });
   }
 
   // prediction sets length of that one run only
   private beginLevel(levelId: number): void {
+    // prediction could lengthen run away from shared or dared level
+    if (isDailyLevel(levelId) || this.dare !== null) {
+      this.predictionRun = false;
+      this.startLevel(levelId);
+      return;
+    }
     if (getPredictionArm() === 'skip' || getPrediction() !== null) {
       this.predictionRun = false;
       this.startLevel(levelId);
@@ -98,6 +148,8 @@ class App {
       return;
     }
     this.currentLevelId = levelId;
+    // per run -> daily started across UTC midnight gets current day
+    this.currentDailyDay = isDailyLevel(levelId) ? dailyDayNumber() : null;
     this.probeIndex = 0;
     this.probeShownAt = null;
     this.elapsedMs = 0;
@@ -106,10 +158,12 @@ class App {
     void this.acquireWakeLock();
 
     const play = new PlayView({ onTap: () => this.gauntlet?.tap() });
+    // date-seeded -> identical everywhere
+    const random = this.currentDailyDay === null ? Math.random : dailyRandom(this.currentDailyDay);
     const gauntlet = new Gauntlet(level, {
       now: () => performance.now(),
       epochNow: () => Date.now(),
-      random: Math.random,
+      random,
       emit: (event) => this.onEngineEvent(event),
     });
 
@@ -132,6 +186,8 @@ class App {
       predicted_ms: getPrediction(),
       is_prediction_run: this.predictionRun,
       attempt_number: this.save.attempts + 1,
+      daily_day: this.currentDailyDay,
+      dare_chain: this.dare === null ? null : this.dare.chain,
     });
     this.loop();
   }
@@ -192,7 +248,9 @@ class App {
   private showResult(result: AttemptResult): void {
     const predicted = getPrediction();
     const unlockedBefore = this.save.unlockedLevel;
-    this.save = recordAttempt(this.save, result);
+    const dailyDay = this.currentDailyDay;
+    const dare = this.dare;
+    this.save = recordAttempt(this.save, result, dailyDay);
 
     track('run_ended', {
       level_id: result.levelId,
@@ -207,9 +265,21 @@ class App {
       prediction_ratio:
         predicted === null ? null : Number((result.survivedMs / predicted).toFixed(4)),
       is_prediction_run: this.predictionRun,
+      daily_day: dailyDay,
+      dare_chain: dare === null ? null : dare.chain,
     });
     if (this.save.unlockedLevel > unlockedBefore) {
       track('level_unlocked', { level_id: this.save.unlockedLevel });
+    }
+    // apart from run_ended -> own dare funnel landed/accepted/result, beat picks volley
+    if (dare !== null) {
+      track('dare_result', {
+        level_id: result.levelId,
+        target_ms: dare.targetMs,
+        survived_ms: Math.round(result.survivedMs),
+        chain: dare.chain,
+        beat: beatsDare(result.survivedMs, dare),
+      });
     }
 
     this.teardownRun();
@@ -225,7 +295,7 @@ class App {
           },
           onHome: () => this.showHome(),
         },
-        { retrospectivePrediction: !this.predictionRun },
+        { retrospectivePrediction: !this.predictionRun, dayNumber: dailyDay, dare },
       ),
     );
     track('result_viewed', {
@@ -279,4 +349,9 @@ if (mount === null) throw new Error('dotto: #app mount point missing from index.
 initAnalytics();
 // set before first event -> every funnel incl home_viewed splits by arm
 setTrackContext({ prediction_arm: getPredictionArm() });
-new App(mount).showHome();
+
+// malformed dare link parses to null -> lands on home
+const app = new App(mount);
+const incoming = parseDare(window.location.search);
+if (incoming === null) app.showHome();
+else app.showDare(incoming);

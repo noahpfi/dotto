@@ -1,18 +1,66 @@
 import { isPostHogEnabled as isAnalyticsOn } from '../analytics/posthog';
 import { BENCHMARKS, FABRICATED_STAT_NOTE } from '../benchmarks';
-import { BRAND, RULES, SUBLINE, TAGLINE, formatDuration } from '../copy';
-import { LEVELS } from '../levels';
-import type { SaveData } from '../storage';
+import { BRAND, RULES, SUBLINE, TAGLINE, dailyShareLabel, formatDuration } from '../copy';
+import { DAILY_LEVEL, LEVELS } from '../levels';
+import { playedDaily, type SaveData } from '../storage';
 import { el } from './dom';
 import { createAppSection } from './appcta';
 
 export interface HomeHandlers {
   readonly onStart: (levelId: number) => void;
+  readonly onStartDaily: () => void;
   // no wake lock -> long levels get cut by auto-lock
   readonly wakeLockUnsupported: boolean;
 }
 
-export function createHome(save: SaveData, handlers: HomeHandlers): HTMLElement {
+export interface HomeContext {
+  readonly dayNumber: number;
+  readonly streak: number;
+}
+
+function createDailyCard(
+  save: SaveData,
+  context: HomeContext,
+  handlers: HomeHandlers,
+): HTMLElement {
+  const done = playedDaily(save, context.dayNumber);
+  const best = save.dailyBest[String(context.dayNumber)];
+  const card = el(
+    'button',
+    'flex w-full max-w-sm flex-row items-center justify-between rounded-2xl border px-5 py-4 text-left ' +
+      'transition border-bone/30 bg-bone/[0.04] text-bone hover:border-bone/50 active:scale-[0.99]',
+  );
+  card.type = 'button';
+
+  const left = el('div', 'flex flex-col');
+  left.appendChild(el('span', 'text-base font-medium', dailyShareLabel(context.dayNumber)));
+
+  const detail: string[] = [];
+  if (done && best !== undefined) {
+    detail.push(`today ${formatDuration(best)}`);
+  } else {
+    detail.push(`${formatDuration(DAILY_LEVEL.durationMs)} · same for everyone`);
+  }
+  if (context.streak >= 2) detail.push(`${context.streak} day streak`);
+  left.appendChild(el('span', 'text-xs text-bone/40', detail.join(' · ')));
+
+  card.appendChild(left);
+  card.appendChild(
+    el(
+      'span',
+      'font-mono text-xs tracking-widest text-bone/40',
+      done ? 'AGAIN' : 'PLAY',
+    ),
+  );
+  card.addEventListener('click', handlers.onStartDaily);
+  return card;
+}
+
+export function createHome(
+  save: SaveData,
+  context: HomeContext,
+  handlers: HomeHandlers,
+): HTMLElement {
   const root = el(
     'div',
     'short-tight min-h-dvh w-full overflow-y-auto bg-ink px-6 py-[max(2rem,env(safe-area-inset-top))] ' +
@@ -41,6 +89,9 @@ export function createHome(save: SaveData, handlers: HomeHandlers): HTMLElement 
     rules.appendChild(li);
   }
   paneA.appendChild(rules);
+
+  // daily above ladder, only item tied to today
+  paneB.appendChild(createDailyCard(save, context, handlers));
 
   const grid = el('div', 'w-full max-w-sm space-y-2');
   for (const [index, level] of LEVELS.entries()) {

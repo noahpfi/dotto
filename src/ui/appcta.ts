@@ -1,7 +1,8 @@
-import { APP_CTA_LABEL, APP_HEADLINE, APP_PITCH, APP_NOT_OUT } from '../copy';
+import { APP_HEADLINE, APP_PITCH, APP_NOT_OUT, APP_PRICE_NOTE, appCtaLabel } from '../copy';
 import { track } from '../track';
 import { el } from './dom';
 import { envOr } from '../analytics/env';
+import { currentPrice, whenPriceResolved } from '../pricing';
 
 const ENDPOINT = envOr(import.meta.env.VITE_WAITLIST_ENDPOINT, '');
 
@@ -41,24 +42,37 @@ export function createAppSection(source: string, options: AppSectionOptions = {}
   const button = el(
     'button',
     'w-full rounded-full bg-bone px-6 py-4 text-sm font-semibold text-ink active:scale-[0.99]',
-    APP_CTA_LABEL,
+    appCtaLabel(currentPrice().display),
   );
   button.type = 'button';
+  const note = el('p', 'text-center text-xs leading-snug text-bone/35', APP_PRICE_NOTE);
   const slot = el('div', 'w-full');
 
+  // USD fallback until country arrives, then corrects -> recorded price matches shown
+  let tapped = false;
+  void whenPriceResolved().then((price) => {
+    if (!tapped) button.textContent = appCtaLabel(price.display);
+  });
+
   button.addEventListener('click', () => {
+    tapped = true;
+    // read at press time -> reported price matches shown label
+    const price = currentPrice();
     track('app_intent', {
       source,
       survived_ms: options.survivedMs === undefined ? null : Math.round(options.survivedMs),
       predicted_ms: options.predictedMs ?? null,
+      price: price.amount,
+      currency: price.currency,
     });
     button.remove();
+    note.remove();
     slot.replaceChildren(
       captureEnabled() ? emailForm(source) : el('p', 'text-center text-sm text-bone/60', APP_NOT_OUT),
     );
   });
 
-  card.append(button, slot);
+  card.append(button, note, slot);
   return card;
 }
 
