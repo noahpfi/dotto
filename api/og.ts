@@ -1,14 +1,21 @@
 import { ImageResponse } from '@vercel/og';
 import { INTER_400, INTER_600 } from '../lib/fonts/inter';
 
-// node-runtime link-preview card from dare query, constants mirror src/ via test/og.test.ts
-export const config = { runtime: 'nodejs' };
+// edge-runtime link-preview card from dare query, constants mirror src/ via test/og.test.ts
+export const config = { runtime: 'edge' };
 
 // declared locally -> keeps @types/node globals out of browser-only codebase
-declare const Buffer: {
-  from(input: string): { toString(encoding: 'base64'): string };
-  from(input: string, encoding: 'base64'): ArrayBufferLike & { buffer: ArrayBuffer };
-};
+// edge runtime lacks Buffer
+function toBase64(input: string): string {
+  return btoa(input);
+}
+
+function fromBase64(input: string): ArrayBuffer {
+  const binary = atob(input);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
 
 // Satori has no system fonts
 const FONTS = [
@@ -17,8 +24,7 @@ const FONTS = [
 ];
 
 function decodeFont(base64: string): ArrayBuffer {
-  const bytes = Buffer.from(base64, 'base64');
-  return bytes.buffer.slice(0) as ArrayBuffer;
+  return fromBase64(base64);
 }
 
 const INK = '#08080a';
@@ -174,7 +180,7 @@ function chartLabel(viewBoxX: number, viewBoxY: number, content: string, style: 
 // chart + labels resvg cannot draw, positioned on same log axis
 export function chartBlock(survivedMs: number, passed: boolean): Node {
   const mark = passed ? BONE : BLOOD;
-  const chart = `data:image/svg+xml;base64,${Buffer.from(chartSvg(survivedMs, passed)).toString('base64')}`;
+  const chart = `data:image/svg+xml;base64,${toBase64(chartSvg(survivedMs, passed))}`;
   const youX = Math.min(
     Math.max(xForMs(survivedMs), CHART.padX + 10),
     CHART.w - CHART.padX - 10,
