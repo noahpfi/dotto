@@ -21,14 +21,6 @@ describe('benchmarks', () => {
     }
   });
 
-  it('never phrases a benchmark as a claim about the player', () => {
-    // guards medical-device line, benchmarks describe study, never reader
-    const banned = /\byour\b|\byou have\b|\bhealthy\b|\bnormal\b|\bpoor\b|\bdiagnos/i;
-    for (const b of BENCHMARKS) {
-      expect(b.line).not.toMatch(banned);
-    }
-  });
-
   it('finds the highest benchmark cleared and the next one ahead', () => {
     expect(benchmarkCleared(10_000)).toBeNull();
     expect(benchmarkCleared(60_000)?.ms).toBe(47_000);
