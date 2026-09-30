@@ -10,7 +10,7 @@ import {
   dwellDensity,
   dwellPercentile,
 } from '../src/benchmarks';
-import { MIN_SAMPLE, percentileOf, playerBand, type LevelStats } from '../src/stats';
+import { MIN_SAMPLE, playerBand, type LevelStats } from '../src/stats';
 
 describe('benchmarks', () => {
   it('every entry carries an attributable source', () => {
@@ -75,17 +75,6 @@ describe('player stats', () => {
       { upToMs: 60_000, count: 30 },
     ],
   };
-
-  it('counts the share of runs at or below the result', () => {
-    expect(percentileOf(stats, 10_000)).toBe(40);
-    expect(percentileOf(stats, 30_000)).toBe(70);
-    expect(percentileOf(stats, 60_000)).toBe(100);
-    expect(percentileOf(stats, 5000)).toBe(0);
-  });
-
-  it('returns 0 on an empty histogram', () => {
-    expect(percentileOf({ levelId: 1, sampleSize: 0, buckets: [] }, 5000)).toBe(0);
-  });
 
   it('derives a p10–p90 band with the median inside it', () => {
     const band = playerBand(stats);

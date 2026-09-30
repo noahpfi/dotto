@@ -17,12 +17,3 @@ export function randomIntBetween(random: () => number, min: number, max: number)
   if (max < min) throw new RangeError(`randomIntBetween: inverted range ${min}..${max}`);
   return min + Math.floor(random() * (max - min + 1));
 }
-
-// empty pool = config bug
-export function pick<T>(random: () => number, items: readonly T[]): T {
-  if (items.length === 0) throw new RangeError('pick: empty list');
-  const item = items[Math.floor(random() * items.length)];
-  // unreachable, satisfies noUncheckedIndexedAccess
-  if (item === undefined) throw new RangeError('pick: index out of range');
-  return item;
-}

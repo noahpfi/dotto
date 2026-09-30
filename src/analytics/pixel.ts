@@ -27,10 +27,6 @@ export function isPixelConfigured(): boolean {
   return PIXEL_ID !== '';
 }
 
-export function isPixelActive(): boolean {
-  return active;
-}
-
 // fbevents.js drains fbq.queue only once
 export function createFbqShim(): Fbq {
   const fbq = function (this: unknown, ...args: unknown[]) {
@@ -78,7 +74,7 @@ export async function initPixel(): Promise<void> {
 }
 
 // no-op outside allowed countries
-export function trackPixel(event: 'Lead' | 'ViewContent', params: Record<string, unknown> = {}): void {
+export function trackPixel(event: 'Lead', params: Record<string, unknown> = {}): void {
   if (!active) return;
   window.fbq?.('track', event, params);
 }

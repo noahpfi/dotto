@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32, pick, randomIntBetween } from '../src/engine/rng';
+import { mulberry32, randomIntBetween } from '../src/engine/rng';
 
 describe('mulberry32', () => {
   it('is deterministic per seed and stays in [0, 1)', () => {
@@ -36,13 +36,5 @@ describe('randomIntBetween', () => {
   it('throws on an inverted range', () => {
     expect(() => randomIntBetween(() => 0, 9, 5)).toThrow(RangeError);
     expect(() => randomIntBetween(() => 0, Number.NaN, 5)).toThrow(RangeError);
-  });
-});
-
-describe('pick', () => {
-  it('returns an element and throws on an empty pool', () => {
-    expect(pick(() => 0, ['a', 'b'])).toBe('a');
-    expect(pick(() => 0.9999999, ['a', 'b'])).toBe('b');
-    expect(() => pick(() => 0, [])).toThrow(RangeError);
   });
 });

@@ -12,7 +12,3 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 export function clear(node: HTMLElement): void {
   node.replaceChildren();
 }
-
-export function autoRemove(node: HTMLElement, ms: number): number {
-  return window.setTimeout(() => node.remove(), ms);
-}

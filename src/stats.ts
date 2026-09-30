@@ -80,11 +80,3 @@ export async function fetchLevelStats(levelId: number): Promise<LevelStats | nul
     return null;
   }
 }
-
-// 0 to 100
-export function percentileOf(stats: LevelStats, ms: number): number {
-  const total = stats.buckets.reduce((sum, b) => sum + b.count, 0);
-  if (total === 0) return 0;
-  const below = stats.buckets.reduce((sum, b) => (b.upToMs <= ms ? sum + b.count : sum), 0);
-  return Math.round((below / total) * 100);
-}

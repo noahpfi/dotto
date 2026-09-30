@@ -41,7 +41,7 @@ export function initAnalytics(): void {
 }
 
 function sendBeacon(name: string, props: Record<string, unknown>): void {
-  if (BEACON === undefined || BEACON === '') return;
+  if (BEACON === '') return;
   // merges context -> raw copy stays segmentable by experiment arm
   const body = JSON.stringify({ event: name, ts: Date.now(), ...getSuperProps(), ...props });
   try {
