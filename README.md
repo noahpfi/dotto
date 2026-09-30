@@ -8,7 +8,7 @@ Browser game: stare at a dot, tap when it goes hollow.
 npm install
 npm run dev      # http://localhost:5173
 npm test         # no browser needed
-npm run build    # tsc --noEmit && vite build
+npm run build    # tsc --noEmit, vite build, scripts/check-bundle.mjs
 ```
 
 Static output in `dist/`.
@@ -44,6 +44,12 @@ A guess longer than chosen level raises that run to match (`levelForPrediction`)
 
 X-axis is logarithmic.
 
+## Daily and dares
+
+Level 0 is daily dot, one schedule per UTC day seeded from date, same worldwide.
+
+Dare links on `/d` carry target time, level, chain hop and day as query integers. `api/dare.ts` rewrites og tags per dare for chat link previews.
+
 ## Code layout
 
 ```
@@ -56,7 +62,13 @@ src/prediction.ts  session guess
 src/levels.ts   levels
 src/copy.ts     user-facing strings
 src/storage.ts  localStorage save
+src/daily.ts    daily seed
+src/dare.ts     dare link parse and build
+src/analytics/  PostHog, Meta Pixel, geo gate
 src/ui/         DOM
+api/dare.ts     per-dare og tags, edge
+api/geo.ts      country verdict for pixel gate, edge
+scripts/check-bundle.mjs  fails build if env data leaks into dist
 ```
 
 ## Analytics
@@ -83,13 +95,14 @@ Copy `.env.example` to `.env`. All optional.
 
 | Variable | Unset behaviour |
 | --- | --- |
+| `VITE_POSTHOG_KEY` | No analytics. |
 | `VITE_SHARE_URL` | Share text uses `window.location.origin`. |
 | `VITE_WAITLIST_ENDPOINT` | "I want the app" shows app-not-out text instead of email field. |
-| `VITE_TRACK_ENDPOINT` | `track()` no-ops. |
+| `VITE_TRACK_ENDPOINT` | No sendBeacon copy of events. |
 | `VITE_STATS_ENDPOINT` | Chart omits dotto-players band. |
 | `VITE_META_PIXEL_ID` | No pixel. |
 
 `VITE_STATS_ENDPOINT` returns `{ sampleSize: number, buckets: [{ upToMs: number, count: number }] }` for `GET <endpoint>?level=<id>`.
 
-Only stored data is local save under `dotto.v1`.
+Stored on device: `dotto.v1` in localStorage, `dotto.prediction` and `dotto.predictionArm` in sessionStorage.
 
