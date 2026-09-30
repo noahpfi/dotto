@@ -132,4 +132,13 @@ describe('applyDarePreview', () => {
     expect(out).not.toMatch(/content="[^"]*<[^"]*"/);
     expect(out.match(/<title>/g)).toHaveLength(1);
   });
+
+  it('inserts replacement patterns in the query literally', () => {
+    const out = applyDarePreview(indexHtml, url("?d=47000&l=1&x=$`$&$'$1"), ORIGIN);
+    expect(out).toContain(
+      'property="og:url" content="https://trydotto.live/d?d=47000&amp;l=1&amp;x=$`$&amp;$%27$1"',
+    );
+    expect(out.match(/<!doctype html>/gi)).toHaveLength(1);
+    expect(out.match(/<meta property="og:url"/g)).toHaveLength(1);
+  });
 });

@@ -58,7 +58,7 @@ function previewFor(url: URL): Preview | null {
 
 function replaceMeta(html: string, attribute: 'property' | 'name', key: string, value: string): string {
   const pattern = new RegExp(`(<meta\\s+${attribute}="${key}"\\s+content=")[^"]*(")`, 'i');
-  return html.replace(pattern, `$1${escapeAttribute(value)}$2`);
+  return html.replace(pattern, (_, open: string, close: string) => `${open}${escapeAttribute(value)}${close}`);
 }
 
 export function applyDarePreview(html: string, url: URL, origin: string): string {
@@ -70,7 +70,7 @@ export function applyDarePreview(html: string, url: URL, origin: string): string
   out = replaceMeta(out, 'property', 'og:url', `${origin}/d${url.search}`);
   out = replaceMeta(out, 'property', 'og:image:alt', preview.title);
   out = replaceMeta(out, 'name', 'twitter:title', preview.title);
-  return out.replace(/(<title>)[^<]*(<\/title>)/i, `$1${escapeAttribute(preview.title)}$2`);
+  return out.replace(/(<title>)[^<]*(<\/title>)/i, (_, open: string, close: string) => `${open}${escapeAttribute(preview.title)}${close}`);
 }
 
 export default async function handler(request: Request): Promise<Response> {
